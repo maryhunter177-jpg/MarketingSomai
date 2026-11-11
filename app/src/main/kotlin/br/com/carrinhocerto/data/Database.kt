@@ -35,6 +35,7 @@ data class CartRow(@Embedded val item: CartItem, val name: String, val imageUrl:
     @Query("DELETE FROM CartItem WHERE id = :id") suspend fun remove(id: Long)
     @Query("DELETE FROM CartItem") suspend fun clearCart()
     @Query("DELETE FROM Price WHERE ean = :ean") suspend fun deletePrices(ean: String)
+    @Query("DELETE FROM Price WHERE ean = :ean AND storeId = :store") suspend fun deletePrice(ean: String, store: String)
     @Query("DELETE FROM Product WHERE ean = :ean") suspend fun deleteProduct(ean: String)
 }
 @Database(entities = [Product::class, Price::class, Store::class, CartItem::class, Purchase::class, PurchaseItem::class], version = 1, exportSchema = true)

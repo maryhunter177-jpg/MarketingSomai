@@ -75,6 +75,7 @@ import java.util.concurrent.atomic.AtomicBoolean
             override fun analyze(frame: ImageProxy) {
                 val media = frame.image
                 if (!currentActive || media == null) { frame.close(); return }
+                try {
                 val input = InputImage.fromMediaImage(media, frame.imageInfo.rotationDegrees)
                 if (ocr) recognizer.process(input).addOnSuccessListener(executor) { text ->
                     val candidates = PriceTagParser().parse(text.textBlocks.flatMap { it.lines }.map { line ->
@@ -88,6 +89,7 @@ import java.util.concurrent.atomic.AtomicBoolean
                     if (stable == 3 || capture.getAndSet(false)) main.execute { currentPrices(candidates) }
                 }.addOnFailureListener { main.execute { error = "Não foi possível ler a etiqueta. Tente novamente ou digite o preço." } }.addOnCompleteListener { frame.close() }
                 else scanner.process(input).addOnSuccessListener { codes -> codes.firstOrNull()?.rawValue?.let(currentCode) }.addOnFailureListener { error = "Leitura indisponível. Digite o código." }.addOnCompleteListener { frame.close() }
+                } catch (_: Exception) { frame.close(); main.execute { error = "Leitura indisponível. Tente novamente ou digite manualmente." } }
             }
         })
         future.addListener({
@@ -96,9 +98,12 @@ import java.util.concurrent.atomic.AtomicBoolean
                 val view = Preview.Builder().build().also { it.surfaceProvider = preview.surfaceProvider }
                 provider?.unbindAll()
                 camera = provider?.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, view, analysis)
+                torch = false
+                error = null
+                camera?.cameraInfo?.cameraState?.observe(owner) { state -> if (state.error != null) error = "Câmera indisponível. Feche outros aplicativos ou digite manualmente." }
             } catch (_: Exception) { error = "Câmera indisponível. Você pode digitar o código e o preço." }
         }, main)
-        onDispose { disposed = true; analysis.clearAnalyzer(); provider?.unbindAll(); scanner.close(); recognizer.close(); executor.shutdown() }
+        onDispose { disposed = true; camera?.cameraInfo?.cameraState?.removeObservers(owner); analysis.clearAnalyzer(); provider?.unbindAll(); scanner.close(); recognizer.close(); executor.shutdown() }
     }
     Box(modifier) {
         AndroidView(factory = { preview }, modifier = Modifier.fillMaxSize())

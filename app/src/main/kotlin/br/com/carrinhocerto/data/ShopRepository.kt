@@ -34,10 +34,12 @@ class ShopRepository(private val db: ShopDatabase, private val api: FoodApi, val
         return Resolved(product, price, dao.cartItem(code))
     }
     suspend fun confirm(product: Product, cents: Long, unit: String, amount: BigDecimal, replace: Boolean) {
+        require(cents in 1..999999999 && unit in listOf("un", "kg") && quantity(amount.toPlainString(), unit) != null) { "Confira o preço, a unidade e a quantidade." }
         val price = Price(product.ean, settings.store, cents, unit)
         db.withTransaction {
             dao.save(product.copy(updatedAt = System.currentTimeMillis())); local.save(price)
             val old = dao.cartItem(product.ean)
+            require(old == null || old.unit == unit || replace) { "Para mudar a unidade, substitua a quantidade atual." }
             val qty = if (!replace && old != null && old.unit == unit) old.quantity + amount else amount
             require(qty <= BigDecimal("9999")) { "Quantidade máxima: 9999." }
             dao.save(CartItem(old?.id ?: 0, product.ean, qty, unit, cents))
@@ -49,7 +51,7 @@ class ShopRepository(private val db: ShopDatabase, private val api: FoodApi, val
     }
     suspend fun change(id: Long, amount: BigDecimal?) = db.withTransaction {
         val item = dao.cartSnapshot().find { it.id == id } ?: return@withTransaction
-        if (amount == null || amount <= BigDecimal.ZERO) dao.remove(id) else { require(amount <= BigDecimal("9999")); dao.save(item.copy(quantity = amount)) }
+        if (amount == null || amount <= BigDecimal.ZERO) dao.remove(id) else { require(amount <= BigDecimal("9999")) { "Quantidade máxima: 9999." }; dao.save(item.copy(quantity = amount)) }
     }
     suspend fun increment(id: Long, delta: BigDecimal) = db.withTransaction {
         val item = dao.cartSnapshot().find { it.id == id } ?: return@withTransaction
@@ -65,7 +67,7 @@ class ShopRepository(private val db: ShopDatabase, private val api: FoodApi, val
     suspend fun delete(ean: String) = db.withTransaction { dao.deletePrices(ean); dao.deleteProduct(ean) }
     suspend fun editProduct(product: Product, cents: Long?, unit: String) = db.withTransaction {
         dao.save(product.copy(updatedAt = System.currentTimeMillis()))
-        if (cents != null) dao.save(Price(product.ean, settings.store, cents, unit))
+        if (cents != null) dao.save(Price(product.ean, settings.store, cents, unit)) else dao.deletePrice(product.ean, settings.store)
     }
 }
 private suspend fun <T> optional(block: suspend () -> T): T? = try { block() } catch (e: CancellationException) { throw e } catch (_: Exception) { null }

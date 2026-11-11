@@ -22,8 +22,8 @@ class LocalPriceRepository(private val dao: ShopDao) : PriceRepository {
 }
 @Serializable data class SharedPrice(val ean: String, @SerialName("store_id") val storeId: String, val cents: Long, val unit: String, @SerialName("updated_at") val updatedAt: Long, @SerialName("device_id") val deviceId: String)
 interface SharedApi {
-    @GET("rest/v1/prices") suspend fun find(@Header("apikey") key: String, @Query("ean") ean: String, @Query("store_id") store: String, @Query("order") order: String = "updated_at.desc", @Query("limit") limit: Int = 1): List<SharedPrice>
-    @POST("rest/v1/prices") suspend fun send(@Header("apikey") key: String, @Body price: SharedPrice)
+    @GET("rest/v1/prices") suspend fun find(@Header("apikey") key: String, @Query("ean") ean: String, @Query("store_id") store: String, @Query("order") order: String = "updated_at.desc", @Query("limit") limit: Int = 1, @Header("Authorization") authorization: String = "Bearer ${BuildConfig.SUPABASE_KEY}"): List<SharedPrice>
+    @POST("rest/v1/prices") suspend fun send(@Header("apikey") key: String, @Body price: SharedPrice, @Header("Authorization") authorization: String = "Bearer ${BuildConfig.SUPABASE_KEY}")
 }
 class RemotePriceRepository(private val deviceId: String) : PriceRepository {
     private val api by lazy { retrofit(BuildConfig.SUPABASE_URL.trimEnd('/') + "/").create(SharedApi::class.java) }

@@ -11,6 +11,7 @@ fun config(key: String) = "\"" + local.getProperty(key, "").replace("\\", "\\\\"
 android {
     namespace = "br.com.carrinhocerto"
     compileSdk = 35
+    buildToolsVersion = "36.0.0"
     defaultConfig {
         applicationId = "br.com.carrinhocerto"
         minSdk = 26

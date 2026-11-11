@@ -4,7 +4,7 @@ App Android nativo em português do Brasil para conferir a compra no supermercad
 
 ## Abrir e compilar
 
-Abra esta pasta no Android Studio compatível com AGP 8.9.1. Instale Android SDK Platform 35 e Build Tools 35.0.0 pelo SDK Manager. Selecione JDK 17 em Settings → Build Tools → Gradle. Aguarde a sincronização. A primeira compilação precisa de internet para baixar dependências; depois o scanner e OCR funcionam offline.
+Abra esta pasta no Android Studio compatível com AGP 8.9.1. Instale Android SDK Platform 35 e Build Tools 36.0.0 pelo SDK Manager. Selecione JDK 17 em Settings → Build Tools → Gradle. Aguarde a sincronização. A primeira compilação precisa de internet para baixar dependências; depois o scanner e OCR funcionam offline.
 
 Crie `local.properties` (não versionado) com o caminho do SDK, por exemplo:
 
@@ -45,7 +45,7 @@ apksigner sign --ks carrinho-release.jks --ks-key-alias carrinho --out carrinho-
 apksigner verify --verbose carrinho-certo.apk
 ```
 
-`zipalign` e `apksigner` ficam em `<SDK>/build-tools/35.0.0/`; no Windows use `apksigner.bat`. Não publique APK debug.
+`zipalign` e `apksigner` ficam em `<SDK>/build-tools/36.0.0/`; no Windows use `apksigner.bat`. Não publique APK debug. O projeto fixa Build Tools 36.0.0 para usar a ferramenta já instalada no ambiente de validação, mantendo compile/target SDK em 35.
 
 ## Uso e decisões
 
@@ -95,6 +95,7 @@ create table public.prices (
   received_at timestamptz not null default now()
 );
 create index prices_lookup on public.prices (ean, store_id, updated_at desc);
+create index prices_rate_lookup on public.prices (device_id, received_at desc);
 alter table public.prices enable row level security;
 grant select, insert on public.prices to anon;
 grant usage, select on sequence public.prices_id_seq to anon;

@@ -20,7 +20,7 @@ class ShopViewModel(val repo: ShopRepository) : ViewModel() {
     val messages = Channel<String>(Channel.UNLIMITED)
     val accepted = Channel<Unit>(Channel.UNLIMITED)
     private val debounce = ScanDebouncer()
-    fun runTask(block: suspend () -> Unit) { viewModelScope.launch { try { block() } catch (e: CancellationException) { throw e } catch (e: Exception) { messages.send(e.message ?: "Não foi possível concluir. Tente novamente.") } } }
+    fun runTask(block: suspend () -> Unit) { viewModelScope.launch { try { block() } catch (e: CancellationException) { throw e } catch (e: IllegalArgumentException) { messages.send(e.message ?: "Confira os valores informados.") } catch (_: Exception) { messages.send("Não foi possível concluir. Tente novamente.") } } }
     fun scan(code: String) {
         if (busy.value || pending.value != null || repo.settings.store.isBlank() || !debounce.accept(code, SystemClock.elapsedRealtime())) return
         busy.value = true
