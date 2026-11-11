@@ -59,7 +59,7 @@ import java.util.concurrent.atomic.AtomicBoolean
     val currentPrices by rememberUpdatedState(onPrices)
     val currentActive by rememberUpdatedState(active)
     val capture = remember { AtomicBoolean(false) }
-    DisposableEffect(owner, ocr, permitted) {
+    DisposableEffect(owner, ocr, permitted, active) {
         val executor = Executors.newSingleThreadExecutor()
         val main = ContextCompat.getMainExecutor(context)
         val future = ProcessCameraProvider.getInstance(context)
@@ -91,7 +91,7 @@ import java.util.concurrent.atomic.AtomicBoolean
             }
         })
         future.addListener({
-            if (!disposed) try {
+            if (!disposed && active) try {
                 provider = future.get()
                 val view = Preview.Builder().build().also { it.surfaceProvider = preview.surfaceProvider }
                 provider?.unbindAll()

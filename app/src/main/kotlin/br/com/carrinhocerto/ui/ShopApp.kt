@@ -183,6 +183,7 @@ import java.util.Locale
             resolved.product.imageUrl?.let { AsyncImage(it, "Foto do produto", Modifier.size(64.dp)) }
             OutlinedTextField(name, { name = it }, label = { Text("Nome do produto") }, modifier = Modifier.fillMaxWidth())
             resolved.price?.let { val days = ((System.currentTimeMillis() - it.updatedAt) / 86400000).coerceAtLeast(0); Text("${if (it.source == "local") "Você registrou" else "Outro usuário registrou"} • Atualizado há $days dias${if (!fresh) " • Confira a etiqueta" else ""}") }
+            if (resolved.price != null) TextButton(onClick = { price = ""; ocr = true }) { Text("Esse preço está errado") }
             if (ocr) {
                 Scanner(true, !busy, {}, { candidates = it; ocrMessage = if (it.isEmpty()) "Nenhum preço encontrado. Tente novamente ou digite." else "Toque no preço da etiqueta para usar." }, Modifier.fillMaxWidth().height(230.dp))
                 Text(ocrMessage)
