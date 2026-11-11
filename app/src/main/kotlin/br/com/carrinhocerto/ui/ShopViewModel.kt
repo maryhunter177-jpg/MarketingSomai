@@ -33,7 +33,7 @@ class ShopViewModel(val repo: ShopRepository) : ViewModel() {
         runTask { try { repo.confirm(resolved.product.copy(name = name.ifBlank { "Produto não identificado" }), cents, unit, qty, replace); pending.value = null; messages.send("${name.ifBlank { "Produto não identificado" }} adicionado - ${money(subtotal(cents, qty))}") } finally { busy.value = false } }
     }
     fun edit(row: CartRow) { pending.value = Resolved(Product(row.item.ean, row.name, imageUrl = row.imageUrl), Price(row.item.ean, repo.settings.store, row.item.unitPriceCents, row.item.unit), row.item) }
-    fun change(row: CartRow, delta: BigDecimal) = runTask { repo.change(row.item.id, changedQuantity(row.item.quantity, delta)) }
+    fun change(row: CartRow, delta: BigDecimal) = runTask { repo.increment(row.item.id, delta) }
     fun remove(row: CartRow) = runTask { repo.dao.remove(row.item.id) }
     fun undo(row: CartRow) = runTask { val current = repo.dao.cartItem(row.item.ean); repo.dao.save(if (current == null) row.item else current.copy(quantity = current.quantity + row.item.quantity)) }
 }

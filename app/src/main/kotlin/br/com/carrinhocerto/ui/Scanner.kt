@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import br.com.carrinhocerto.domain.*
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
@@ -33,7 +35,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable fun Scanner(ocr: Boolean, active: Boolean, onCode: (String) -> Unit, onPrices: (List<PriceCandidate>) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val owner = LocalLifecycleOwner.current
     var permitted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) permitted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permitted = it }
     if (!permitted) {
         Column(modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -43,7 +51,6 @@ import java.util.concurrent.atomic.AtomicBoolean
         }
         return
     }
-    val owner = LocalLifecycleOwner.current
     val preview = remember { PreviewView(context) }
     var camera by remember { mutableStateOf<Camera?>(null) }
     var torch by remember { mutableStateOf(false) }
@@ -70,7 +77,11 @@ import java.util.concurrent.atomic.AtomicBoolean
                 if (!currentActive || media == null) { frame.close(); return }
                 val input = InputImage.fromMediaImage(media, frame.imageInfo.rotationDegrees)
                 if (ocr) recognizer.process(input).addOnSuccessListener(executor) { text ->
-                    val candidates = PriceTagParser().parse(text.textBlocks.flatMap { it.lines }.map { TagLine(it.text, it.boundingBox?.height() ?: 1, 0) })
+                    val candidates = PriceTagParser().parse(text.textBlocks.flatMap { it.lines }.map { line ->
+                        val box = line.boundingBox
+                        val center = if (frame.imageInfo.rotationDegrees % 180 == 0) frame.height / 2 else frame.width / 2
+                        TagLine(line.text, box?.height() ?: 1, if (box == null) 0 else (100 - kotlin.math.abs(box.centerY() - center) * 100 / center.coerceAtLeast(1)).coerceAtLeast(0))
+                    })
                     val value = candidates.firstOrNull()?.cents
                     stable = if (value != null && value == last) stable + 1 else 1
                     last = value

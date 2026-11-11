@@ -40,7 +40,8 @@ class PriceTagParser {
                 val tail = line.text.substring(match.range.last + 1).trimStart()
                 if (Regex("(?i)^(%|g\\b|ml\\b|un\\b|x\\b|/\\d)").containsMatchIn(tail)) return@mapNotNull null
                 val raw = match.groupValues[1].replace(Regex("\\s+"), ",")
-                val cents = parsePrice(raw) ?: return@mapNotNull null
+                val parsed = parsePrice(raw) ?: return@mapNotNull null
+                val cents = if (Regex("(?i)100\\s*g\\b").containsMatchIn(lines.joinToString(" ") { it.text })) Math.multiplyExact(parsed, 10) else parsed
                 val prefix = line.text.substring(0, match.range.first).lowercase()
                 val score = line.height * 10 + line.centrality + (if (match.value.contains("R$", true)) 30 else 0) +
                     (if (prefix.trimEnd().endsWith("por")) 100 else 0) - (if (prefix.trimEnd().endsWith("de")) 80 else 0) -

@@ -51,6 +51,10 @@ class ShopRepository(private val db: ShopDatabase, private val api: FoodApi, val
         val item = dao.cartSnapshot().find { it.id == id } ?: return@withTransaction
         if (amount == null || amount <= BigDecimal.ZERO) dao.remove(id) else { require(amount <= BigDecimal("9999")); dao.save(item.copy(quantity = amount)) }
     }
+    suspend fun increment(id: Long, delta: BigDecimal) = db.withTransaction {
+        val item = dao.cartSnapshot().find { it.id == id } ?: return@withTransaction
+        change(id, changedQuantity(item.quantity, delta))
+    }
     suspend fun finish() = db.withTransaction {
         val items = dao.cartSnapshot()
         require(items.isNotEmpty()) { "Seu carrinho está vazio." }
