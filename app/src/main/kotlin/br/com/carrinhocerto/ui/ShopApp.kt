@@ -130,7 +130,7 @@ import java.util.Locale
     if (privacy) {
         var sharing by remember { mutableStateOf(vm.repo.settings.sharing) }
         AlertDialog(onDismissRequest = { privacy = false }, title = { Text("Privacidade") }, text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text("Sem login e sem anúncios. Carrinho, produtos e histórico ficam neste aparelho. O código consultado é enviado ao Open Food Facts; fotos de produtos são carregadas do endereço retornado. A câmera e o OCR processam imagens no aparelho, sem enviá-las. O ML Kit pode enviar métricas técnicas ao Google conforme seus termos.")
                 Text("O compartilhamento opcional envia código, preço, unidade, mercado, data e um identificador aleatório persistente ao servidor configurado. Nenhuma foto de etiqueta é enviada. Desligar impede novos envios, mas não apaga registros já enviados.")
                 Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(sharing, enabled = vm.repo.settings.configured, onCheckedChange = { sharing = it; vm.repo.settings.sharing = it }); Text("Compartilhar preços") }

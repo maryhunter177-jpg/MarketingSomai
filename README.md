@@ -56,7 +56,7 @@ apksigner verify --verbose carrinho-certo.apk
 - Entrada monetária: `12,90` ou `12.90` = R$ 12,90; sem separador, `1290` = R$ 12,90, inclusive `12` = R$ 0,12. Essa convenção é exibida no formulário. Para R$ 12,00 digite `12,00`.
 - Botões de kg alteram 0,100 kg; toque na quantidade para digitar outro peso. Chegar a zero remove. Deslizar ou “Remover” oferece desfazer.
 - Preços são por mercado. Produtos e metadados são comuns ao aparelho. A última compra mostra preço anterior quando diferente; o histórico preserva nome, unidade, preço e quantidade originais.
-- Excluir um produto apaga seus preços salvos e preserva carrinho/histórico; o carrinho exibe nome genérico se necessário. Editar produto salvo afeta próximas leituras; o carrinho tem sua própria correção de preço.
+- Excluir um produto apaga seus preços salvos e preserva carrinho/histórico; o carrinho exibe nome genérico se necessário. Deixar o preço vazio ao editar apaga apenas o preço do mercado atual. Editar produto salvo afeta próximas leituras; o carrinho tem sua própria correção de preço.
 - Orçamento e mercado ficam em SharedPreferences; carrinho e compras ficam em Room. Compra finalizada é uma transação: histórico e limpeza são atômicos. Rotação não perde o carrinho. Um formulário de confirmação ainda não salvo pode ser cancelado quando o processo do app for encerrado.
 - Tema acompanha o sistema. Total e ações ficam fixos acima da lista rolável; telas menores podem exigir rolagem no formulário. Tela principal em retrato é a experiência recomendada.
 
@@ -128,3 +128,9 @@ Esse limite por identificador evita envios acidentais excessivos; um cliente pod
 Apenas o EAN é consultado no Open Food Facts; metadados e foto retornados são armazenados/carregados. Preços locais não são enviados a essa API. Compartilhamento habilitado envia código, preço, unidade, mercado, data e UUID aleatório persistente ao Supabase. Câmera/OCR são locais; SDKs ML Kit podem enviar métricas técnicas ao Google. Sem analytics próprio. Backup Android está desativado. A tela Privacidade explica os fluxos e permite desligar o remoto. Apagar os dados do app remove o histórico local; não apaga registros antes compartilhados.
 
 Referências: [compatibilidade AGP/Gradle](https://developer.android.com/build/releases/about-agp), [ML Kit Barcode Scanning](https://developers.google.com/ml-kit/vision/barcode-scanning/android), [ML Kit Text Recognition](https://developers.google.com/ml-kit/vision/text-recognition/v2/android).
+
+## Validação neste ambiente
+
+Em 11/11/2026, `gradlew.bat testDebugUnitTest assembleDebug --no-daemon --console=plain` concluiu com `BUILD SUCCESSFUL`: 37 testes, zero falhas (31 casos parametrizados do parser, 1 teste de ranking e 5 testes de regras). O APK foi inspecionado com `aapt`: nome Carrinho Certo, minSdk 26, targetSdk 35, quatro ABIs. Os modelos embarcados de código de barras/OCR e bibliotecas de quatro arquiteturas tornam o APK de debug aproximadamente 74 MiB.
+
+Não havia dispositivo conectado por ADB. Câmera, lanterna, vibração, beep, comportamento em rotação e qualidade de reconhecimento precisam de teste funcional no celular. O servidor Supabase não estava configurado; não houve validação de integração com um servidor real. As consultas de rede têm fallback local, mas não substituem teste de campo com etiquetas e iluminação do supermercado.
