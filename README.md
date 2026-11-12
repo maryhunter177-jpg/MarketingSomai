@@ -2,6 +2,14 @@
 
 App Android nativo em português do Brasil para conferir a compra no supermercado. Sem login e anúncios. Kotlin, Compose Material 3, CameraX, ML Kit com modelos embarcados, Room/Flow, Koin, Retrofit e kotlinx.serialization. Android 8 (API 26) ou superior; target/compile SDK 35; JDK 17.
 
+## Versão 1.1 — visual e saldo disponível
+
+Identidade verde com tema claro/escuro, ícones vetoriais próprios, novo ícone do aplicativo, cartões de produtos e histórico, total animado e scanner compacto. A opção Privacidade está no ícone de escudo no cabeçalho.
+
+Toque em “Quanto você quer gastar?” no cartão do total e informe o valor da compra. O orçamento aceita `200` ou `200,00` como **R$ 200,00**. O **saldo disponível = limite − total** é recalculado ao adicionar, remover, alterar preço ou quantidade, inclusive por kg. Ao ultrapassar o limite, o saldo fica negativo e há um aviso; a partir de 80% o total recebe destaque amarelo. O limite permanece salvo até ser alterado ou removido, e volta ao valor integral ao iniciar um carrinho vazio. A convenção de reais inteiros é exclusiva do orçamento; a entrada de preço de produto continua aceitando dígitos como centavos, com explicação no formulário.
+
+Instale o APK 1.1 sobre a versão 1.0 para preservar dados. O applicationId, a assinatura de debug e a versão do banco Room permanecem os mesmos; não é necessário desinstalar o app. O versionCode foi incrementado para 2.
+
 ## Abrir e compilar
 
 Abra esta pasta no Android Studio compatível com AGP 8.9.1. Instale Android SDK Platform 35 e Build Tools 36.0.0 pelo SDK Manager. Selecione JDK 17 em Settings → Build Tools → Gradle. Aguarde a sincronização. A primeira compilação precisa de internet para baixar dependências; depois o scanner e OCR funcionam offline.

@@ -11,11 +11,18 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -44,14 +51,23 @@ import java.util.concurrent.atomic.AtomicBoolean
     }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permitted = it }
     if (!permitted) {
-        Column(modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Precisamos da câmera para ler códigos e etiquetas. Você também pode digitar o código e o preço.")
-            Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) { Text("Permitir câmera") }
-            TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }) { Text("Abrir configurações") }
+        Column(modifier.background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp)).padding(16.dp), verticalArrangement = Arrangement.Center) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(42.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { AppIcon(Symbol.Camera, tint = MaterialTheme.colorScheme.primary) }
+                Column(Modifier.weight(1f)) {
+                    Text("Escaneie e confira", style = MaterialTheme.typography.titleMedium)
+                    Text("Ative a câmera para ler códigos e etiquetas. Você também pode digitar.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 14.dp)) { Text("Ativar câmera") }
+                TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }) { Text("Configurações", fontSize = 12.sp) }
+            }
         }
         return
     }
-    val preview = remember { PreviewView(context) }
+    val preview = remember { PreviewView(context).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE } }
     var camera by remember { mutableStateOf<Camera?>(null) }
     var torch by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -105,12 +121,18 @@ import java.util.concurrent.atomic.AtomicBoolean
         }, main)
         onDispose { disposed = true; camera?.cameraInfo?.cameraState?.removeObservers(owner); analysis.clearAnalyzer(); provider?.unbindAll(); scanner.close(); recognizer.close(); executor.shutdown() }
     }
-    Box(modifier) {
+    Box(modifier.clip(RoundedCornerShape(24.dp)).background(Color(0xFF11231C))) {
         AndroidView(factory = { preview }, modifier = Modifier.fillMaxSize())
-        Box(Modifier.align(Alignment.Center).fillMaxWidth(0.85f).height(72.dp).border(2.dp, MaterialTheme.colorScheme.primary))
-        Surface(Modifier.align(Alignment.TopCenter), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)) { Text(if (ocr) "Enquadre o preço da prateleira" else "Enquadre o código de barras", Modifier.padding(8.dp)) }
-        Row(Modifier.align(Alignment.BottomCenter)) {
-            FilledTonalButton(onClick = { if (camera?.cameraInfo?.hasFlashUnit() == true) { torch = !torch; camera?.cameraControl?.enableTorch(torch) } else error = "Este aparelho não tem lanterna disponível." }) { Text(if (torch) "Desligar lanterna" else "Lanterna") }
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent, Color.Black.copy(alpha = 0.6f)))))
+        Box(Modifier.align(Alignment.Center).fillMaxWidth(0.8f).height(if (ocr) 72.dp else 48.dp).border(2.dp, Mint, RoundedCornerShape(12.dp)))
+        Row(Modifier.align(Alignment.TopStart).padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            AppIcon(if (ocr) Symbol.Camera else Symbol.Scan, modifier = Modifier.size(16.dp), tint = Mint)
+            Text(if (ocr) "Enquadre o preço da prateleira" else "Enquadre o código de barras", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        }
+        Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilledTonalButton(onClick = { if (camera?.cameraInfo?.hasFlashUnit() == true) { torch = !torch; camera?.cameraControl?.enableTorch(torch) } else error = "Este aparelho não tem lanterna disponível." }, colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color.Black.copy(alpha = 0.45f), contentColor = if (torch) Mint else Color.White), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+                AppIcon(Symbol.Flash, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text(if (torch) "Lanterna ligada" else "Lanterna", fontSize = 11.sp)
+            }
             if (ocr) Button(onClick = { capture.set(true) }) { Text("Capturar preço") }
         }
         error?.let { Surface(Modifier.align(Alignment.Center)) { Text(it, Modifier.padding(12.dp)) } }

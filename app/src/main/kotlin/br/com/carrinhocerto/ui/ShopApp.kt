@@ -4,8 +4,9 @@ import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.VibrationEffect
 import android.os.Vibrator
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,7 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -57,32 +60,28 @@ import java.util.Locale
             runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 65).also { it.startTone(ToneGenerator.TONE_PROP_BEEP, 100); delay(150); it.release() } }
         }
     }
-    Scaffold(snackbarHost = { SnackbarHost(snack) }, topBar = {
-        TopAppBar(title = { Text("Carrinho Certo") }, actions = { TextButton(onClick = { privacy = true }) { Text("Privacidade") } })
+    var editBudget by remember { mutableStateOf(false) }
+    Scaffold(containerColor = MaterialTheme.colorScheme.background, snackbarHost = { SnackbarHost(snack) }, topBar = {
+        AppHeader { privacy = true }
     }, bottomBar = {
-        NavigationBar { listOf("Carrinho", "Histórico", "Produtos").forEachIndexed { index, label -> NavigationBarItem(selected = tab == index, onClick = { tab = index }, icon = { Text(listOf("▣", "◷", "▤")[index]) }, label = { Text(label) }) } }
+        NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+            listOf("Carrinho", "Histórico", "Produtos").forEachIndexed { index, label ->
+                NavigationBarItem(selected = tab == index, onClick = { tab = index },
+                    icon = { AppIcon(listOf(Symbol.Cart, Symbol.Clock, Symbol.Box)[index]) },
+                    label = { Text(label, fontWeight = if (tab == index) FontWeight.SemiBold else FontWeight.Normal) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = MaterialTheme.colorScheme.primaryContainer, selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary))
+            }
+        }
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            TextButton(onClick = { chooseStore = true }) { Text("Mercado: ${store.ifBlank { "Escolher mercado" }}") }
+            MarketSelector(state.stores.find { it.id == store }?.name ?: store) { chooseStore = true }
             when (tab) {
                 0 -> {
-                    Scanner(ocr = false, active = pending == null && !busy && !chooseStore && !manual && !finish, onCode = vm::scan, onPrices = {}, modifier = Modifier.fillMaxWidth().height(180.dp))
-                    val color = when { budget > 0 && state.total > budget -> MaterialTheme.colorScheme.error; budget > 0 && BigDecimal(state.total) >= BigDecimal(budget).multiply(BigDecimal("0.8")) -> if (androidx.compose.foundation.isSystemInDarkTheme()) Color(0xFFFFD54F) else Color(0xFF805500); else -> MaterialTheme.colorScheme.primary }
-                    Surface(tonalElevation = 3.dp) {
-                        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                            Text(money(state.total), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = color, modifier = Modifier.animateContentSize())
-                            Text("${state.cart.size} produtos • ${state.cart.filter { it.item.unit == "un" }.sumOf { it.item.quantity.toLong() }} unidades • ${state.cart.filter { it.item.unit == "kg" }.fold(BigDecimal.ZERO) { a, r -> a + r.item.quantity }.stripTrailingZeros().toPlainString()} kg")
-                            if (budget > 0 && state.total > budget) Text("Você ultrapassou seu orçamento.", color = color)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(budgetText, { budgetText = it; budget = parsePrice(it) ?: 0; vm.repo.settings.budget = budget }, label = { Text("Meu orçamento") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.weight(1f))
-                                TextButton(onClick = { manual = true }) { Text("Digitar código") }
-                            }
-                            Button(onClick = { finish = true }, enabled = state.cart.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Finalizar compra") }
-                        }
-                    }
+                    Scanner(ocr = false, active = pending == null && !busy && !chooseStore && !manual && !finish && !editBudget, onCode = vm::scan, onPrices = {}, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(152.dp).clip(RoundedCornerShape(24.dp)))
+                    BasketSummary(state, budget, { budgetText = budget.takeIf { it > 0 }?.let { BigDecimal.valueOf(it, 2).toPlainString().replace('.', ',') } ?: ""; editBudget = true }, { manual = true }, { finish = true })
                     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     LazyColumn(Modifier.weight(1f)) {
-                        if (state.cart.isEmpty()) item { Text("Seu carrinho está vazio. Escaneie um produto para começar.", Modifier.padding(24.dp)) }
+                        if (state.cart.isEmpty()) item { EmptyState(Symbol.Cart, "Vamos começar?", "Escaneie um produto ou digite o código.", compact = true) } else item { SectionHeading("No seu carrinho") }
                         items(state.cart, key = { it.item.id }) { row ->
                             val dismiss = rememberSwipeToDismissBoxState(confirmValueChange = { value ->
                                 if (value != SwipeToDismissBoxValue.Settled) {
@@ -100,17 +99,33 @@ import java.util.Locale
                         }
                     }
                 }
-                1 -> LazyColumn {
-                    if (state.purchases.isEmpty()) item { Text("Suas compras finalizadas aparecerão aqui.", Modifier.padding(24.dp)) }
+                1 -> LazyColumn(contentPadding = PaddingValues(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    item { SectionHeading("Suas compras", "Seu histórico, organizado em um só lugar") }
+                    if (state.purchases.isEmpty()) item { EmptyState(Symbol.Clock, "Cada compra tem sua história", "Finalize sua primeira compra para acompanhar seus gastos por aqui.") }
                     items(state.purchases, key = { it.id }) { purchase ->
-                        ListItem(headlineContent = { Text(money(purchase.totalCents)) }, supportingContent = { Text("${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.forLanguageTag("pt-BR")).format(Date(purchase.date))} • ${state.stores.find { it.id == purchase.storeId }?.name ?: purchase.storeId}") }, modifier = Modifier.clickable { vm.runTask { details = vm.repo.dao.details(purchase.id) } })
-                        HorizontalDivider()
+                        Surface(onClick = { vm.runTask { details = vm.repo.dao.details(purchase.id) } }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface) {
+                            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { AppIcon(Symbol.Check, tint = MaterialTheme.colorScheme.primary) }
+                                Column(Modifier.weight(1f)) {
+                                    Text(state.stores.find { it.id == purchase.storeId }?.name ?: purchase.storeId, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.forLanguageTag("pt-BR")).format(Date(purchase.date)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(money(purchase.totalCents), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 6.dp))
+                                }
+                                AppIcon(Symbol.Chevron, "Ver detalhes", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
                 }
                 2 -> ProductsScreen(state, vm)
             }
         }
     }
+    if (editBudget) AlertDialog(onDismissRequest = { editBudget = false }, icon = { AppIcon(Symbol.Wallet) }, title = { Text("Quanto você quer gastar?") }, text = {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Defina um valor para esta compra. Cada produto é descontado automaticamente do seu saldo disponível.")
+            OutlinedTextField(budgetText, { budgetText = it }, label = { Text("Valor disponível (R$)") }, placeholder = { Text("Ex.: 200,00") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, isError = budgetText.isNotBlank() && parseBudget(budgetText) == null, supportingText = { Text("200 ou 200,00 representam R$ 200,00") })
+        }
+    }, confirmButton = { TextButton(enabled = parseBudget(budgetText) != null, onClick = { budget = parseBudget(budgetText) ?: 0; vm.repo.settings.budget = budget; editBudget = false }) { Text("Definir valor") } }, dismissButton = { Row { if (budget > 0) TextButton(onClick = { budget = 0; budgetText = ""; vm.repo.settings.budget = 0; editBudget = false }) { Text("Remover limite") }; TextButton(onClick = { editBudget = false }) { Text("Cancelar") } } })
     if (manual) TextDialog("Código do produto", "Código de barras", "", KeyboardType.Ascii, { manual = false }) { code -> manual = false; vm.scan(code) }
     if (chooseStore) {
         var name by remember { mutableStateOf("") }
@@ -142,25 +157,31 @@ import java.util.Locale
 }
 
 @Composable private fun CartCard(row: CartRow, edit: () -> Unit, change: (BigDecimal) -> Unit, remove: () -> Unit) {
-    Surface { Column(Modifier.fillMaxWidth().padding(12.dp)) {
+    Surface(modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp), shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface) { Column(Modifier.fillMaxWidth().padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            row.imageUrl?.let { AsyncImage(it, "Foto de ${row.name}", Modifier.size(56.dp)) }
-            Column(Modifier.weight(1f).padding(start = 8.dp)) {
-                Text(row.name, fontWeight = FontWeight.Bold)
-                Text("${money(row.item.unitPriceCents)}/${row.item.unit} • Corrigir preço", Modifier.clickable(onClick = edit), color = MaterialTheme.colorScheme.primary)
+            Box(Modifier.size(52.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                if (row.imageUrl != null) AsyncImage(row.imageUrl, "Foto de ${row.name}", Modifier.fillMaxSize().padding(6.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Fit)
+                else AppIcon(Symbol.Box, tint = MaterialTheme.colorScheme.primary)
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(row.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text("${money(row.item.unitPriceCents)}/${row.item.unit} • editar", Modifier.clickable(onClick = edit).padding(vertical = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 if (row.previousPrice != null && row.previousPrice != row.item.unitPriceCents) Text("Última vez: ${money(row.previousPrice)}", style = MaterialTheme.typography.bodySmall)
             }
-            Text(money(subtotal(row.item.unitPriceCents, row.item.quantity)), fontWeight = FontWeight.Bold)
+            IconButton(onClick = remove, modifier = Modifier.size(40.dp)) { AppIcon(Symbol.Delete, "Remover ${row.name}", Modifier.size(19.dp), MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             val step = if (row.item.unit == "kg") BigDecimal("0.100") else BigDecimal.ONE
-            OutlinedButton(onClick = { change(step.negate()) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("−") }
-            TextButton(onClick = edit) { Text("${row.item.quantity.stripTrailingZeros().toPlainString().replace('.', ',')} ${row.item.unit}") }
-            OutlinedButton(onClick = { change(step) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("+") }
+            Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { change(step.negate()) }) { AppIcon(Symbol.Minus, "Diminuir quantidade", Modifier.size(18.dp)) }
+                    TextButton(onClick = edit, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("${row.item.quantity.stripTrailingZeros().toPlainString().replace('.', ',')} ${row.item.unit}", fontWeight = FontWeight.SemiBold) }
+                    IconButton(onClick = { change(step) }) { AppIcon(Symbol.Plus, "Aumentar quantidade", Modifier.size(18.dp)) }
+                }
+            }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = remove) { Text("Remover") }
+            Text(money(subtotal(row.item.unitPriceCents, row.item.quantity)), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         }
-        HorizontalDivider()
     } }
 }
 
@@ -179,7 +200,11 @@ import java.util.Locale
     val amount = quantity(qty, unit)
     ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Confirmar produto", style = MaterialTheme.typography.titleLarge)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { AppIcon(Symbol.Box, tint = MaterialTheme.colorScheme.primary) }
+                Column(Modifier.weight(1f).padding(start = 12.dp)) { Text("Confirmar produto", style = MaterialTheme.typography.titleLarge); Text("Confira os detalhes antes de adicionar", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                IconButton(onClick = close, enabled = !busy) { AppIcon(Symbol.Close, "Fechar confirmação") }
+            }
             resolved.product.imageUrl?.let { AsyncImage(it, "Foto do produto", Modifier.size(64.dp)) }
             OutlinedTextField(name, { name = it }, label = { Text("Nome do produto") }, modifier = Modifier.fillMaxWidth())
             resolved.price?.let { val days = ((System.currentTimeMillis() - it.updatedAt) / 86400000).coerceAtLeast(0); Text("${if (it.source == "local") "Você registrou" else "Outro usuário registrou"} • Atualizado há $days dias${if (!fresh) " • Confira a etiqueta" else ""}") }
@@ -202,7 +227,9 @@ import java.util.Locale
                 Text("No carrinho: ${resolved.current.quantity.toPlainString()} ${resolved.current.unit}")
                 Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(replace, { replace = it; qty = if (it) resolved.current.quantity.toPlainString() else "1" }); Text("Substituir quantidade atual (desmarque para somar)") }
             }
-            if (cents != null && amount != null) Text("Subtotal: ${money(subtotal(cents, amount))}", style = MaterialTheme.typography.titleLarge)
+            if (cents != null && amount != null) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(16.dp)) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Text("Subtotal do produto", style = MaterialTheme.typography.bodyMedium); Text(money(subtotal(cents, amount)), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary) }
+            }
             Button(onClick = { if (cents != null && amount != null) confirm(name, cents, unit, amount, replace) }, enabled = !busy && cents != null && amount != null, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(if (busy) "Salvando…" else "Adicionar ao carrinho") }
             TextButton(onClick = close, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
         }
@@ -214,12 +241,26 @@ import java.util.Locale
     var editing by remember { mutableStateOf<Product?>(null) }
     var deleting by remember { mutableStateOf<Product?>(null) }
     Column {
-        OutlinedTextField(search, { search = it }, label = { Text("Pesquisar nome ou código") }, modifier = Modifier.fillMaxWidth().padding(12.dp))
-        LazyColumn {
-            items(state.products.filter { it.name.contains(search, true) || it.ean.contains(search) }, key = { it.ean }) { product ->
+        SectionHeading("Seus produtos", "Preços salvos para facilitar a próxima compra")
+        OutlinedTextField(search, { search = it }, placeholder = { Text("Buscar nome ou código") }, leadingIcon = { AppIcon(Symbol.Search) }, singleLine = true, shape = RoundedCornerShape(16.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp))
+        val filtered = state.products.filter { it.name.contains(search, true) || it.ean.contains(search) }
+        LazyColumn(contentPadding = PaddingValues(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (filtered.isEmpty()) item { EmptyState(Symbol.Box, if (search.isBlank()) "Sua lista começa na primeira leitura" else "Nenhum produto encontrado", if (search.isBlank()) "Os produtos que você adicionar ficam salvos aqui para a próxima visita ao mercado." else "Tente buscar outro nome ou código de barras.") }
+            items(filtered, key = { it.ean }) { product ->
                 val price = state.prices.find { it.ean == product.ean && it.storeId == vm.repo.settings.store }
-                ListItem(headlineContent = { Text(product.name) }, supportingContent = { Text("${product.ean} • ${price?.let { money(it.cents) + "/" + it.unit } ?: "Sem preço neste mercado"}") }, trailingContent = { Row { TextButton(onClick = { editing = product }) { Text("Editar") }; TextButton(onClick = { deleting = product }) { Text("Excluir") } } })
-                HorizontalDivider()
+                Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface) {
+                    Column(Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                                if (product.imageUrl != null) AsyncImage(product.imageUrl, "Foto de ${product.name}", Modifier.size(36.dp), contentScale = ContentScale.Fit) else AppIcon(Symbol.Box, tint = MaterialTheme.colorScheme.primary)
+                            }
+                            Column(Modifier.weight(1f)) { Text(product.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis); Text(product.ean, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            IconButton(onClick = { editing = product }) { AppIcon(Symbol.Edit, "Editar ${product.name}", Modifier.size(20.dp)) }
+                            IconButton(onClick = { deleting = product }, modifier = Modifier.size(40.dp)) { AppIcon(Symbol.Delete, "Excluir ${product.name}", Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant) }
+                        }
+                        Text(price?.let { money(it.cents) + "/" + it.unit } ?: "Sem preço neste mercado", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp))
+                    }
+                }
             }
         }
     }

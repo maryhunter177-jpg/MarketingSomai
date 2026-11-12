@@ -17,6 +17,16 @@ fun quantity(text: String, unit: String): BigDecimal? = runCatching {
 }.getOrNull()
 fun subtotal(cents: Long, amount: BigDecimal): Long = BigDecimal.valueOf(cents).multiply(amount).setScale(0, RoundingMode.HALF_UP).longValueExact()
 fun total(lines: List<Pair<Long, BigDecimal>>): Long = lines.fold(0L) { sum, (price, qty) -> Math.addExact(sum, subtotal(price, qty)) }
+fun remainingBudget(limitCents: Long, totalCents: Long): Long = Math.subtractExact(limitCents, totalCents)
+fun parseBudget(text: String): Long? {
+    val clean = text.trim().replace("R$", "").replace(" ", "")
+    val normalized = when {
+        clean.matches(Regex("\\d+")) -> "$clean,00"
+        clean.matches(Regex("\\d{1,3}(\\.\\d{3})+")) -> clean.replace(".", "") + ",00"
+        else -> clean
+    }
+    return parsePrice(normalized)
+}
 fun changedQuantity(current: BigDecimal, delta: BigDecimal): BigDecimal? = current.add(delta).takeIf { it > BigDecimal.ZERO }
 class ScanDebouncer(private val interval: Long = 2000) {
     private val seen = mutableMapOf<String, Long>()
