@@ -139,6 +139,8 @@ Referências: [compatibilidade AGP/Gradle](https://developer.android.com/build/r
 
 ## Validação neste ambiente
 
+Versão 1.1, em 12/11/2026: `gradlew.bat testDebugUnitTest assembleDebug --offline --no-daemon --console=plain` concluído com sucesso e **40 testes sem falhas**, incluindo orçamento digitado em reais, abatimento com peso, devolução de saldo ao remover itens e saldo negativo ao ultrapassar o limite. A inspeção do APK confirmou versionName 1.1, versionCode 2, minSdk 26 e targetSdk 35. O novo visual ainda precisa ser conferido no aparelho físico, especialmente com fontes ampliadas e modo escuro.
+
 Em 11/11/2026, `gradlew.bat testDebugUnitTest assembleDebug --no-daemon --console=plain` concluiu com `BUILD SUCCESSFUL`: 37 testes, zero falhas (31 casos parametrizados do parser, 1 teste de ranking e 5 testes de regras). O APK foi inspecionado com `aapt`: nome Carrinho Certo, minSdk 26, targetSdk 35, quatro ABIs. Os modelos embarcados de código de barras/OCR e bibliotecas de quatro arquiteturas tornam o APK de debug aproximadamente 74 MiB.
 
 Não havia dispositivo conectado por ADB. Câmera, lanterna, vibração, beep, comportamento em rotação e qualidade de reconhecimento precisam de teste funcional no celular. O servidor Supabase não estava configurado; não houve validação de integração com um servidor real. As consultas de rede têm fallback local, mas não substituem teste de campo com etiquetas e iluminação do supermercado.
