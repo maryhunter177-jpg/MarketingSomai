@@ -27,7 +27,7 @@ import java.math.BigDecimal
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(Modifier.size(40.dp).background(Forest, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { AppIcon(Symbol.Cart, tint = Color.White) }
                 Column {
-                    Text("Carrinho Certo", style = MaterialTheme.typography.titleLarge)
+                    Text("MarketingSomai", style = MaterialTheme.typography.titleLarge)
                     Text("SUA COMPRA, SOB CONTROLE", fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

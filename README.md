@@ -1,4 +1,6 @@
-# Carrinho Certo
+# MarketingSomai
+
+Na versão 1.1.1 (versionCode 3), o nome exibido na instalação, no ícone do celular e no cabeçalho passou a ser MarketingSomai. O identificador interno e o banco permanecem iguais para permitir atualizar sem perder dados.
 
 App Android nativo em português do Brasil para conferir a compra no supermercado. Sem login e anúncios. Kotlin, Compose Material 3, CameraX, ML Kit com modelos embarcados, Room/Flow, Koin, Retrofit e kotlinx.serialization. Android 8 (API 26) ou superior; target/compile SDK 35; JDK 17.
 
